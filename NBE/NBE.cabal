@@ -17,7 +17,7 @@ extra-source-files:  README.md
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Untyped.Simple, Untyped.Free
+  exposed-modules:     Untyped.Simple, Untyped.Free, Untyped.Foil   
   build-depends:       base >= 4.7 && < 5, containers, deepseq
 -- executable NBE
 --   hs-source-dirs:      src
