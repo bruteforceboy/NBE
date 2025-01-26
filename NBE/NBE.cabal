@@ -17,19 +17,33 @@ extra-source-files:  README.md
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Untyped.Simple, Untyped.Free, Untyped.Foil   
-  build-depends:       base >= 4.7 && < 5, containers, deepseq
--- executable NBE
---   hs-source-dirs:      src
---   main-is:             Main.hs
+  exposed-modules:     Untyped.Simple, Untyped.Free, Untyped.Foil, 
+                       Parser.Setup, 
+                       Parser.Syntax.Abs, 
+                       Parser.Syntax.ErrM, 
+                       Parser.Syntax.Layout, 
+                       Parser.Syntax.Print, 
+                       Parser.Syntax.Skel, 
+                       Parser.Syntax.Lex,
+                       Parser.Syntax.Par
+  build-depends:       base >= 4.7 && < 5
+                     , containers >= 0.6.7
+                     , deepseq >= 1.4.8.0  
+                     , PyF >= 0.11
+                     , Cabal >= 3.8
+                     , process
+                     , array >= 0.5.4.0
+executable NBE
+  hs-source-dirs:      src
+  main-is:             Main.hs
   default-language:    Haskell2010
---   build-depends:       base >= 4.7 && < 5
---   ghc-options:         -Wall
---                        -Wcompat
---                        -Widentities
---                        -Wincomplete-record-updates
---                        -Wincomplete-uni-patterns
---                        -Wmissing-export-lists
---                        -Wmissing-home-modules
---                        -Wpartial-fields
---                        -Wredundant-constraints
+  build-depends:       base >= 4.7 && < 5
+  ghc-options:         -Wall
+                       -Wcompat
+                       -Widentities
+                       -Wincomplete-record-updates
+                       -Wincomplete-uni-patterns
+                       -Wmissing-export-lists
+                       -Wmissing-home-modules
+                       -Wpartial-fields
+                       -Wredundant-constraints
