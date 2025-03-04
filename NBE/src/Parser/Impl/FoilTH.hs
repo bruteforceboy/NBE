@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
@@ -41,20 +42,18 @@
 -- 1. \(\alpha\)-equivalence checks and \(\alpha\)-normalization helpers.
 --
 -- This implementation supports (nested) patterns for pairs.
-module Language.Lambda.Impl.FoilTH where
+module Parser.Impl.FoilTH where
 
-import Control.Monad.Foil
-import Control.Monad.Foil.TH
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.String (IsString (..))
-import Generics.Kind.TH
-import qualified Language.Lambda.Syntax.Abs as Raw
-import qualified Language.Lambda.Syntax.Layout as Raw
-import qualified Language.Lambda.Syntax.Lex as Raw
-import qualified Language.Lambda.Syntax.Par as Raw
-import qualified Language.Lambda.Syntax.Print as Raw
-
--- * Generated code
+import Generics.Kind
+import Parser.Syntax.Abs qualified as Raw
+import Parser.Syntax.Layout qualified as Raw
+import Parser.Syntax.Lex qualified as Raw
+import Parser.Syntax.Par qualified as Raw
+import Parser.Syntax.Print qualified as Raw
+import Untyped.Foil
+import Untyped.TH.MkFoilData
 
 -- ** Scope-safe AST
 
