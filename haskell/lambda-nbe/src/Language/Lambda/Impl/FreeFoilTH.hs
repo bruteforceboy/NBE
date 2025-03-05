@@ -214,3 +214,10 @@ whnf scope = \case
   t -> t
 
 -- "λx. x"
+
+-- | Normal form.
+--
+-- >>> Free.nf emptyScope (fromString "(λs. λz. s (s (s z))) (λs. λz. s (s z)) (λx. x) (λy. λz. y)")
+-- λ x1 . λ x2 . x1
+nf :: (Foil.Distinct n) => Foil.Scope n -> Term n -> Term n
+nf scope term = quote scope (eval scope Foil.identitySubst term)
