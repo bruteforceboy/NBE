@@ -121,6 +121,7 @@ test-suite spec
   other-modules:
       BNFC_Spec
       FoilTH_Spec
+      FreeFoilTH_Spec
       Paths_lambda_nbe
   hs-source-dirs:
       test
