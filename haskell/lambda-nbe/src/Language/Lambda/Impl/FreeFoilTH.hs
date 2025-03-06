@@ -11,6 +11,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Language.Lambda.Impl.FreeFoilTH where
 
@@ -29,6 +30,7 @@ import qualified Language.Lambda.Syntax.Abs as Raw
 import qualified Language.Lambda.Syntax.Lex as Raw
 import qualified Language.Lambda.Syntax.Par as Raw
 import qualified Language.Lambda.Syntax.Print as Raw
+import Data.Bifunctor
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -112,6 +114,97 @@ type Value' a = Closure (FoilPattern' a) (Term'Sig a)
 
 noLocation :: Raw.BNFC'Position
 noLocation = error "no location"
+
+-- class QuoteSig pat sig where
+--   quoteSig
+--     :: (Foil.Distinct o)
+--     => Foil.Scope o
+--     -> Foil.Substitution (Closure pat sig) n o
+--     -> sig (ScopedAST pat sig n) (Closure pat sig n)
+--     -> sig (ScopedAST pat sig o) (AST pat sig o)
+
+-- instance QuoteSig (FoilPattern' a) (Term'Sig a) where
+--   quoteSig scope env = \case
+--     LamSig annotation (ScopedAST (FoilPatternVar _ binder) body) ->
+--       Foil.withRefreshed scope (Foil.nameOf binder) $ \binder' ->
+--           let scope' = Foil.extendScope binder' scope
+--               env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf binder')
+--            in LamSig annotation $ ScopedAST (FoilPatternVar annotation binder') $
+--                 (quote' scope' (eval scope' env' body))
+--     _ -> error "Unsupported signature in Closure"
+
+-- class EvalSig pat sig where
+--   evalSig
+--     :: Foil.Scope o
+--     -> sig (ScopedAST pat sig o) (AST pat sig o)
+--     -> sig (ScopedAST pat sig n) (Closure pat sig n)
+
+-- instance EvalSig (FoilPattern' a) (Term'Sig a) where
+--   evalSig scope = \case
+--     AppSig t1 t2 ->
+--       case eval t1 of -- ???
+--         _ -> _
+
+-- TODO:
+-- 1. Complete the generic quote' (keep eval' as a parameter, use eval in tests).
+-- 2. Ensure that it works for untype lambda calculus.
+-- 3. Extend untyped lambda calculus with pairs ({t1, t2}) and projections (first, second).
+-- 4. Extend untyped lambda calculus with let-binding (let x = t1 in t2)
+-- 5. Add doctests (examples) for eval/quote/etc.
+-- 6. Set up hspec with hspec-discover to write more tests separately.
+-- 7. Use QuickCheck to be able to generate random terms and perform property-testing with them (which properties are we interested in?).
+-- 8. Use Criterion to set up a benchmark suite OR fork lambda-n-ways and use your package with it.
+
+
+
+-- MIGHT BE OUT OF REACH:
+-- 1. Generalized eval
+-- 2. Typed NbE
+-- 3a. Extend untyped lambda calculus with booleans (false, true) and if-expression (if t1 then t2 else t3).
+--      - untyped NBE is not easy (I think):
+--            if x then y else y  ->  y ??
+--
+--            if x then (if y then true else false) else (if y then false else true)
+--             ==
+--            if y then (if x then true else false) else (if x then false else true)
+--             ==
+--            case {x, y} of
+--                {true, true} -> true
+--              | {true, false} -> false 
+--              | {false, true} -> false 
+--              | {false, false} -> true
+--
+-- 3b. Extend untyped lambda calculus with sums (inl(t1), inr(t2)) and pattern-matching (case t1 of inl(x) -> t2 | inr(y) -> t3).
+--      - untyped NBE is not easy (I think):
+--      
+
+quote' :: (Foil.Distinct n, Bifunctor sig) => Foil.Scope n -> Closure pat sig n -> AST pat sig n
+quote' scope = \case
+  VarC x -> Var x
+  Closure env node -> Node $
+    -- node                   :: sig (ScopedAST pat sig i) (Closure pat sig i)
+    -- substituteClosure scope env
+    --                        :: Closure pat sig i -> Closure pat sig n
+    -- quote' scope           :: Closure pat sig n -> AST pat sig n
+    -- bimap ... ... node     :: sig (ScopedAST pat sig n) (AST pat sig n)
+    bimap
+      (quoteScoped scope env)
+      (quote' scope . substituteClosure scope env)
+      node
+
+quoteScoped
+  :: (Foil.Distinct n, Bifunctor sig)
+  => {- type of eval' -> -}
+     Foil.Scope o
+  -> Foil.Substitution (Closure pat sig) n o
+  -- -> (forall l. pat n l -> Foil.NameBinder n l)
+  -> ScopedAST pat sig n
+  -> ScopedAST pat sig o
+quoteScoped {- eval' -} scope env {- patternToNameBinder -} (ScopedAST pat body) =
+  Foil.withRefreshedPattern scope pat $ \_ pat' ->
+    let scope' = Foil.extendScopePattern pat' scope
+        env' = Foil.addRename (Foil.sink env) pat (Foil.nameOf pat')
+      in ScopedAST pat' (quote' scope' (eval' scope' env' body))
 
 quote :: (Foil.Distinct n) => Foil.Scope n -> Value' a n -> Term' a n
 quote scope = \case
