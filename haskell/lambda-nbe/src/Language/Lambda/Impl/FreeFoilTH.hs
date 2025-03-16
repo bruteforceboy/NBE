@@ -3,11 +3,13 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -16,8 +18,15 @@
 module Language.Lambda.Impl.FreeFoilTH where
 
 import qualified Control.Monad.Foil as Foil
+import Control.Monad.Foil.Internal
 import Control.Monad.Foil.TH
 import Control.Monad.Free.Foil
+  ( AST (..),
+    ScopedAST (..),
+    convertFromAST,
+    convertToAST,
+    substitute,
+  )
 import Control.Monad.Free.Foil.TH
 import Data.Bifunctor
 import Data.Bifunctor.TH
@@ -26,6 +35,7 @@ import qualified Data.Map as Map
 import Data.String (IsString (..))
 import Data.ZipMatchK
 import qualified GHC.Generics as GHC
+import qualified GHC.Stack as Foil
 import Generics.Kind.TH (deriveGenericK)
 import qualified Language.Lambda.Syntax.Abs as Raw
 import qualified Language.Lambda.Syntax.Lex as Raw
@@ -106,6 +116,7 @@ data Closure pat sig n where
   VarC ::
     Foil.Name n -> Closure pat sig n
   Closure ::
+    (Foil.Distinct n) =>
     Foil.Substitution (Closure pat sig) n o -> -- Environment (values of captured variables).
     sig (ScopedAST pat sig n) (Closure pat sig n) ->
     Closure pat sig o
@@ -176,7 +187,7 @@ noLocation = error "no location"
 --      - untyped NBE is not easy (I think):
 --
 substituteClosure ::
-  (Foil.Distinct o) =>
+  (Foil.Distinct o, Foil.CoSinkable pat, ExtEndo o) =>
   Foil.Scope o ->
   Foil.Substitution (Closure pat sig) n o ->
   Closure pat sig n ->
@@ -187,7 +198,7 @@ substituteClosure scope env = \case
     Closure (Foil.sink env') sig
 
 quote' ::
-  (Foil.Distinct n, Bifunctor sig) =>
+  (Foil.Distinct n, Bifunctor sig, ExtEndo n, HasNameBinder pat, Foil.CoSinkable pat) =>
   ( forall l m.
     (Foil.Distinct m) =>
     Foil.Scope m ->
@@ -200,7 +211,7 @@ quote' ::
   AST pat sig n
 quote' eval scope = \case
   VarC x -> Var x
-  Closure env node ->
+  Closure (env :: Foil.Substitution (Closure pat sig) i n) node ->
     Node $
       -- node                   :: sig (ScopedAST pat sig i) (Closure pat sig i)
       -- substituteClosure scope env
@@ -219,8 +230,16 @@ instance HasNameBinder (FoilPattern' a) where
   patternToNameBinder (FoilPatternVar _ binder) = binder
   patternToNameBinder _ = error "Unsupported pattern in patternToNameBinder"
 
+-- Foil.Scope o -> Foil.Substitution (Value' a) i o -> Term' a i -> Value' a o
+
 quoteScoped ::
-  (Foil.Distinct n, Foil.Distinct o, Bifunctor sig, Foil.CoSinkable pat) =>
+  ( Foil.Distinct n,
+    Foil.Distinct o,
+    Bifunctor sig,
+    Foil.CoSinkable pat,
+    ExtEndo o,
+    HasNameBinder pat
+  ) =>
   ( forall l m.
     (Foil.Distinct m) =>
     Foil.Scope m ->
@@ -230,43 +249,41 @@ quoteScoped ::
   ) ->
   Foil.Scope o ->
   Foil.Substitution (Closure pat sig) n o ->
-  (forall l. pat n l -> Foil.NameBinder n l) ->
+  (forall m l. pat m l -> Foil.NameBinder m l) ->
   ScopedAST pat sig n ->
   ScopedAST pat sig o
--- (forall (o' :: S).
--- DExt o o' =>
--- (Substitution e n o -> Substitution e l o') -> pattern o o' -> r)
 quoteScoped eval scope env patternToNameBinder (ScopedAST pat body) =
-  Foil.withRefreshedPattern scope pat $ \(_ :: ) pat' ->
+  Foil.withRefreshedPattern scope pat $ \(_ :: Foil.Substitution (Closure pat sig) n o -> Foil.Substitution (Closure pat sig) l o') pat' ->
     let binder = patternToNameBinder pat
         scope' = Foil.extendScopePattern pat' scope
-     in ScopedAST pat' (quote' eval scope' (eval scope' env' body))
         env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf (patternToNameBinder pat'))
+     in ScopedAST pat' (quote' eval scope' (eval scope' env' body))
 
-quote :: (Foil.Distinct n) => Foil.Scope n -> Value' a n -> Term' a n
-quote scope = \case
-  VarC x ->
-    Var x
-  Closure env sig ->
-    case sig of
-      LamSig annotation (ScopedAST (FoilPatternVar _ binder) body) ->
-        Foil.withRefreshed scope (Foil.nameOf binder) $ \binder' ->
-          let scope' = Foil.extendScope binder' scope
-              env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf binder')
-           in Lam annotation (FoilPatternVar annotation binder') $
-                (quote scope' (eval scope' env' body))
-      _ -> error "Unsupported signature in Closure"
+-- quote :: (Foil.Distinct n) => Foil.Scope n -> Value' a n -> Term' a n
+-- quote scope = \case
+--   VarC x ->
+--     Var x
+--   Closure env sig ->
+--     case sig of
+--       LamSig annotation (ScopedAST (FoilPatternVar _ binder) body) ->
+--         Foil.withRefreshed scope (Foil.nameOf binder) $ \binder' ->
+--           let scope' = Foil.extendScope binder' scope
+--               env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf binder')
+--            in Lam annotation (FoilPatternVar annotation binder') $
+--                 (quote scope' (eval scope' env' body))
+--       _ -> error "Unsupported signature in Closure"
 
 instance Foil.InjectName (Closure pat sig) where
   injectName = VarC
 
 instance Foil.Sinkable (Closure pat sig) where
+  sinkabilityProof :: (Name n -> Name l) -> Closure pat sig n -> Closure pat sig l
   sinkabilityProof rename (VarC n) =
     VarC (rename n)
   sinkabilityProof rename (Closure env sig) =
     Closure (Foil.sinkabilityProof rename env) sig
 
-eval :: (Foil.Distinct o) => Foil.Scope o -> Foil.Substitution (Value' a) i o -> Term' a i -> Value' a o
+eval :: (Foil.Distinct o, Foil.Distinct i) => Foil.Scope o -> Foil.Substitution (Value' a) i o -> Term' a i -> Value' a o
 eval scope env = \case
   Var x -> Foil.lookupSubst env x
   App loc f x ->
@@ -349,5 +366,5 @@ whnf scope = \case
 --
 -- >>> Free.nf emptyScope (fromString "(λs. λz. s (s (s z))) (λs. λz. s (s z)) (λx. x) (λy. λz. y)")
 -- λ x1 . λ x2 . x1
-nf :: (Foil.Distinct n) => Foil.Scope n -> Term n -> Term n
-nf scope term = quote scope (eval scope Foil.identitySubst term)
+-- nf :: (Foil.Distinct n) => Foil.Scope n -> Term n -> Term n
+-- nf scope term = quote scope (eval scope Foil.identitySubst term)
