@@ -200,7 +200,7 @@ substituteClosure scope env = \case
 quote' ::
   (Foil.Distinct n, Bifunctor sig, ExtEndo n, HasNameBinder pat, Foil.CoSinkable pat) =>
   ( forall l m.
-    (Foil.Distinct m) =>
+    (Foil.Distinct m, Foil.Distinct l) =>
     Foil.Scope m ->
     Foil.Substitution (Closure pat sig) l m ->
     AST pat sig l ->
@@ -241,7 +241,7 @@ quoteScoped ::
     HasNameBinder pat
   ) =>
   ( forall l m.
-    (Foil.Distinct m) =>
+    (Foil.Distinct m, Foil.Distinct l) =>
     Foil.Scope m ->
     Foil.Substitution (Closure pat sig) l m ->
     AST pat sig l ->
@@ -254,10 +254,12 @@ quoteScoped ::
   ScopedAST pat sig o
 quoteScoped eval scope env patternToNameBinder (ScopedAST pat body) =
   Foil.withRefreshedPattern scope pat $ \(_ :: Foil.Substitution (Closure pat sig) n o -> Foil.Substitution (Closure pat sig) l o') pat' ->
-    let binder = patternToNameBinder pat
-        scope' = Foil.extendScopePattern pat' scope
-        env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf (patternToNameBinder pat'))
-     in ScopedAST pat' (quote' eval scope' (eval scope' env' body))
+    case Foil.assertDistinct pat' of
+      (Foil.Distinct) ->
+        let binder = patternToNameBinder pat
+            scope' = Foil.extendScopePattern pat' scope
+            env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf (patternToNameBinder pat'))
+         in ScopedAST pat' (quote' eval scope' (eval scope' env' body))
 
 -- quote :: (Foil.Distinct n) => Foil.Scope n -> Value' a n -> Term' a n
 -- quote scope = \case
@@ -289,9 +291,11 @@ eval scope env = \case
   App loc f x ->
     case eval scope env f of
       Closure env' (LamSig _ (ScopedAST (FoilPatternVar _ binder) body)) ->
-        let arg = eval scope env x
-            env'' = Foil.addSubst env' binder arg
-         in eval scope env'' body
+        case Foil.assertDistinct binder of
+          (Foil.Distinct) ->
+            let arg = eval scope env x
+                env'' = Foil.addSubst env' binder arg
+             in eval scope env'' body
   Lam loc (FoilPatternVar _ binder) body ->
     Closure env (LamSig loc (ScopedAST (FoilPatternVar loc binder) body))
 
@@ -366,5 +370,6 @@ whnf scope = \case
 --
 -- >>> Free.nf emptyScope (fromString "(λs. λz. s (s (s z))) (λs. λz. s (s z)) (λx. x) (λy. λz. y)")
 -- λ x1 . λ x2 . x1
--- nf :: (Foil.Distinct n) => Foil.Scope n -> Term n -> Term n
+nf :: (Foil.Distinct n, ExtEndo n) => Foil.Scope n -> Term n -> Term n
 -- nf scope term = quote scope (eval scope Foil.identitySubst term)
+nf scope term = quote' eval scope (eval scope Foil.identitySubst term)
