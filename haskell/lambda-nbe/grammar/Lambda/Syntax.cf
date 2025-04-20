@@ -10,6 +10,10 @@ AProgram. Program ::= [Term] ;
 Var.  Term2 ::= VarIdent ;
 Lam.  Term ::= "λ" Pattern "." ScopedTerm ;
 App.  Term1 ::= Term1 Term2 ;
+Pair. Term ::= "(" Term "," Term ")" ;
+First. Term ::= "π₁" "(" Term ")" ;
+Second. Term ::= "π₂" "(" Term ")" ;
+Let. Term ::= "let" Pattern "=" Term "in" ScopedTerm ;
 coercions Term 2 ;
 terminator Term ";";
 

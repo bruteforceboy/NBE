@@ -148,6 +148,10 @@ instance Print (Language.Lambda.Syntax.Abs.Term' a) where
     Language.Lambda.Syntax.Abs.Var _ varident -> prPrec i 2 (concatD [prt 0 varident])
     Language.Lambda.Syntax.Abs.Lam _ pattern_ scopedterm -> prPrec i 0 (concatD [doc (showString "\955"), prt 0 pattern_, doc (showString "."), prt 0 scopedterm])
     Language.Lambda.Syntax.Abs.App _ term1 term2 -> prPrec i 1 (concatD [prt 1 term1, prt 2 term2])
+    Language.Lambda.Syntax.Abs.Pair _ term1 term2 -> prPrec i 0 (concatD [doc (showString "("), prt 0 term1, doc (showString ","), prt 0 term2, doc (showString ")")])
+    Language.Lambda.Syntax.Abs.First _ term -> prPrec i 0 (concatD [doc (showString "\960\8321"), doc (showString "("), prt 0 term, doc (showString ")")])
+    Language.Lambda.Syntax.Abs.Second _ term -> prPrec i 0 (concatD [doc (showString "\960\8322"), doc (showString "("), prt 0 term, doc (showString ")")])
+    Language.Lambda.Syntax.Abs.Let _ pattern_ term scopedterm -> prPrec i 0 (concatD [doc (showString "let"), prt 0 pattern_, doc (showString "="), prt 0 term, doc (showString "in"), prt 0 scopedterm])
 
 instance Print [Language.Lambda.Syntax.Abs.Term' a] where
   prt _ [] = concatD []

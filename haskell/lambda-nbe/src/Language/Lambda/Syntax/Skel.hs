@@ -28,6 +28,10 @@ transTerm x = case x of
   Language.Lambda.Syntax.Abs.Var _ varident -> failure x
   Language.Lambda.Syntax.Abs.Lam _ pattern_ scopedterm -> failure x
   Language.Lambda.Syntax.Abs.App _ term1 term2 -> failure x
+  Language.Lambda.Syntax.Abs.Pair _ term1 term2 -> failure x
+  Language.Lambda.Syntax.Abs.First _ term -> failure x
+  Language.Lambda.Syntax.Abs.Second _ term -> failure x
+  Language.Lambda.Syntax.Abs.Let _ pattern_ term scopedterm -> failure x
 
 transScopedTerm :: Show a => Language.Lambda.Syntax.Abs.ScopedTerm' a -> Result
 transScopedTerm x = case x of

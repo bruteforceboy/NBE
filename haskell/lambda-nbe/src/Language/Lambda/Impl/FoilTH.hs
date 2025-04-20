@@ -16,34 +16,33 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- | Foil implementation of the \(\lambda\Pi\)-calculus (with pairs)
--- using Template Haskell and "Generics.Kind" to reduce boilerplate.
---
--- Template Haskell helpers __generate__ the following:
---
--- 1. Scope-safe AST, generated from a raw definition. See 'FoilTerm', 'FoilScopedTerm', and 'FoilPattern'.
--- 2. Conversion between scope-safe and raw term representation (the latter is generated via BNFC), see 'toFoilTerm'' and 'fromFoilTerm''.
--- 3. Helper functions for patterns. See 'extendScopeFoilPattern'' and 'withRefreshedFoilPattern''.
---
--- The following is provided via kind-polymophic generics (see "Generics.Kind"):
---
--- 1. 'Sinkable' instance for 'FoilTerm''.
--- 2. 'CoSinkable' instance for 'FoilPattern'', giving access to 'extendScopePattern' and 'withRefreshedPattern' (among other utilities).
---
--- The following is implemented __manually__ in this module:
---
--- 1. Correct capture-avoiding substitution (see 'substitute').
--- 2. Computation of weak head normal form (WHNF), see 'whnf'.
--- 3. Entry point, gluing everything together. See 'defaultMain'.
---
--- The following is __not implemented__:
---
--- 1. \(\alpha\)-equivalence checks and \(\alpha\)-normalization helpers.
---
--- This implementation supports (nested) patterns for pairs.
 module Language.Lambda.Impl.FoilTH where
 
 import Control.Monad.Foil
+  ( CoSinkable,
+    Distinct,
+    HasNameBinders,
+    InjectName (..),
+    Name,
+    NameBinder,
+    S (VoidS),
+    Scope,
+    Sinkable (..),
+    SinkableK,
+    Substitution,
+    addRename,
+    addSubst,
+    emptyNameMap,
+    emptyScope,
+    extendScope,
+    extendScopePattern,
+    identitySubst,
+    lookupSubst,
+    nameOf,
+    sink,
+    withRefreshed,
+    withRefreshedPattern,
+  )
 import Control.Monad.Foil.TH
 import qualified Data.Map as Map
 import Data.String (IsString (..))
@@ -102,11 +101,9 @@ fromFoilTermClosed freshVars = fromFoilTerm' freshVars emptyNameMap
 instance InjectName (FoilTerm' a) where
   injectName = FoilVar (error "undefined location")
 
--- * User-defined
-
 -- ** Substitution
 
--- | Perform substitution in a \(\lambda\Pi\)-term.
+-- | Perform substitution in a \(\lambda\Nbe\)-term.
 substitute :: (Distinct o) => Scope o -> Substitution FoilTerm i o -> FoilTerm i -> FoilTerm o
 substitute scope subst = \case
   FoilVar _loc name -> lookupSubst subst name
@@ -142,7 +139,7 @@ whnf scope = \case
 
 -- ** Pretty-printing
 
--- | Pretty-print a /closed/ scode-safe \(\lambda\Pi\)-term
+-- | Pretty-print a /closed/ scode-safe \(\lambda\Nbe\)-term
 -- using BNFC-generated printer (via 'Raw.Term').
 printFoilTerm :: FoilTerm VoidS -> String
 printFoilTerm =

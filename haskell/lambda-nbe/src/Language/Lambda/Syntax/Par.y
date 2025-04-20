@@ -37,9 +37,15 @@ import Language.Lambda.Syntax.Lex
 %token
   '('        { PT _ (TS _ 1)       }
   ')'        { PT _ (TS _ 2)       }
-  '.'        { PT _ (TS _ 3)       }
-  ';'        { PT _ (TS _ 4)       }
-  'λ'        { PT _ (TS _ 5)       }
+  ','        { PT _ (TS _ 3)       }
+  '.'        { PT _ (TS _ 4)       }
+  ';'        { PT _ (TS _ 5)       }
+  '='        { PT _ (TS _ 6)       }
+  'in'       { PT _ (TS _ 7)       }
+  'let'      { PT _ (TS _ 8)       }
+  'λ'        { PT _ (TS _ 9)       }
+  'π₁'       { PT _ (TS _ 10)      }
+  'π₂'       { PT _ (TS _ 11)      }
   L_VarIdent { PT _ (T_VarIdent _) }
 
 %%
@@ -59,6 +65,10 @@ Term2
 Term :: { (Language.Lambda.Syntax.Abs.BNFC'Position, Language.Lambda.Syntax.Abs.Term) }
 Term
   : 'λ' Pattern '.' ScopedTerm { (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1), Language.Lambda.Syntax.Abs.Lam (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
+  | '(' Term ',' Term ')' { (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1), Language.Lambda.Syntax.Abs.Pair (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
+  | 'π₁' '(' Term ')' { (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1), Language.Lambda.Syntax.Abs.First (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1)) (snd $3)) }
+  | 'π₂' '(' Term ')' { (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1), Language.Lambda.Syntax.Abs.Second (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1)) (snd $3)) }
+  | 'let' Pattern '=' Term 'in' ScopedTerm { (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1), Language.Lambda.Syntax.Abs.Let (uncurry Language.Lambda.Syntax.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4) (snd $6)) }
   | Term1 { (fst $1, (snd $1)) }
 
 Term1 :: { (Language.Lambda.Syntax.Abs.BNFC'Position, Language.Lambda.Syntax.Abs.Term) }

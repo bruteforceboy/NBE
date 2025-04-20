@@ -32,6 +32,10 @@ data Term' a
     = Var a VarIdent
     | Lam a (Pattern' a) (ScopedTerm' a)
     | App a (Term' a) (Term' a)
+    | Pair a (Term' a) (Term' a)
+    | First a (Term' a)
+    | Second a (Term' a)
+    | Let a (Pattern' a) (Term' a) (ScopedTerm' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable, C.Data, C.Typeable, C.Generic)
 
 type ScopedTerm = ScopedTerm' BNFC'Position
@@ -69,6 +73,10 @@ instance HasPosition Term where
     Var p _ -> p
     Lam p _ _ -> p
     App p _ _ -> p
+    Pair p _ _ -> p
+    First p _ -> p
+    Second p _ -> p
+    Let p _ _ _ -> p
 
 instance HasPosition ScopedTerm where
   hasPosition = \case
