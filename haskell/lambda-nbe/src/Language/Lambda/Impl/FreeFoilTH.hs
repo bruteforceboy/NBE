@@ -30,6 +30,7 @@ import Control.Monad.Free.Foil
 import Control.Monad.Free.Foil.TH
 import Data.Bifunctor
 import Data.Bifunctor.TH
+import qualified Data.IntMap as IntMap
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.String (IsString (..))
@@ -186,19 +187,64 @@ noLocation = error "no location"
 -- 3b. Extend untyped lambda calculus with sums (inl(t1), inr(t2)) and pattern-matching (case t1 of inl(x) -> t2 | inr(y) -> t3).
 --      - untyped NBE is not easy (I think):
 --
+
+-- Plans to finish up
+-- 0. Extend the AST to support pairs and let-bindings (this shouldn't affect the implementation)
+-- 1. Add tests
+-- 2. Refactor
+-- 3. Go through previous draft of thesis with Nikolai to understand where to continue
+composeSubst ::
+  (Foil.Distinct o, Foil.CoSinkable pat) =>
+  Foil.Scope o ->
+  Foil.Substitution (Closure pat sig) n o ->
+  Foil.Substitution (Closure pat sig) k n ->
+  Foil.Substitution (Closure pat sig) k o
+composeSubst
+  scope
+  env@(UnsafeSubstitution outerMap)
+  env'@(UnsafeSubstitution innerMap) =
+    UnsafeSubstitution $
+      IntMap.union
+        (IntMap.map (substituteClosure scope env) innerMap)
+        outerMap
+
+-- innerMap:  [ x ↦ y z ]
+-- outerMap:  [ x ↦ y, y ↦ z, z ↦ w ]
+-- middleMap: [ x ↦ z w ]
+--
+
+-- [ x ↦ y z ] ; [ x ↦ y, y ↦ z, z ↦ w ]
+-- = [x ↦ z w, y ↦ z, z ↦ w]
+
+-- env :: Foil.Substitution (Closure pat sig) n o
+-- env' :: Foil.Substitution (Closure pat sig) k n
+-- scope :: Foil.Scope o
+
+-- | A substitution is a mapping from names in scope @i@
+-- to expressions @e o@ in scope @o@.
+-- newtype Substitution (e :: S -> Type) (i :: S) (o :: S)
+--   = UnsafeSubstitution (IntMap (e o))
+
+-- innerMap :: (IntMap (Closure pat sig n))
+-- outerMap :: (IntMap (Closure pat sig o))
+
 substituteClosure ::
-  (Foil.Distinct o, Foil.CoSinkable pat, ExtEndo o) =>
+  (Foil.Distinct o, Foil.CoSinkable pat) =>
   Foil.Scope o ->
   Foil.Substitution (Closure pat sig) n o ->
   Closure pat sig n ->
   Closure pat sig o
-substituteClosure scope env = \case
-  VarC x -> Foil.lookupSubst env x
-  Closure env' sig ->
-    Closure (Foil.sink env') sig
+substituteClosure scope env (VarC x) =
+  Foil.lookupSubst env x
+substituteClosure scope env (Closure env' sig) =
+  Closure (composeSubst scope env env') sig
+
+-- env   :: Foil.Substitution (Closure pat sig) n o
+-- env'  :: Foil.Substitution (Closure pat sig) k n
+-- env'' :: Foil.Substitution (Closure pat sig) k o
 
 quote' ::
-  (Foil.Distinct n, Bifunctor sig, ExtEndo n, HasNameBinder pat, Foil.CoSinkable pat) =>
+  (Foil.Distinct n, Bifunctor sig, HasNameBinder pat, Foil.CoSinkable pat) =>
   ( forall l m.
     (Foil.Distinct m, Foil.Distinct l) =>
     Foil.Scope m ->
@@ -237,7 +283,6 @@ quoteScoped ::
     Foil.Distinct o,
     Bifunctor sig,
     Foil.CoSinkable pat,
-    ExtEndo o,
     HasNameBinder pat
   ) =>
   ( forall l m.
@@ -256,10 +301,12 @@ quoteScoped eval scope env patternToNameBinder (ScopedAST pat body) =
   Foil.withRefreshedPattern scope pat $ \(_ :: Foil.Substitution (Closure pat sig) n o -> Foil.Substitution (Closure pat sig) l o') pat' ->
     case Foil.assertDistinct pat' of
       (Foil.Distinct) ->
-        let binder = patternToNameBinder pat
-            scope' = Foil.extendScopePattern pat' scope
-            env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf (patternToNameBinder pat'))
-         in ScopedAST pat' (quote' eval scope' (eval scope' env' body))
+        case Foil.assertDistinct pat of
+          (Foil.Distinct) ->
+            let binder = patternToNameBinder pat
+                scope' = Foil.extendScopePattern pat' scope
+                env' = Foil.addRename (Foil.sink env) binder (Foil.nameOf (patternToNameBinder pat'))
+             in ScopedAST pat' (quote' eval scope' (eval scope' env' body))
 
 -- quote :: (Foil.Distinct n) => Foil.Scope n -> Value' a n -> Term' a n
 -- quote scope = \case
@@ -370,6 +417,6 @@ whnf scope = \case
 --
 -- >>> Free.nf emptyScope (fromString "(λs. λz. s (s (s z))) (λs. λz. s (s z)) (λx. x) (λy. λz. y)")
 -- λ x1 . λ x2 . x1
-nf :: (Foil.Distinct n, ExtEndo n) => Foil.Scope n -> Term n -> Term n
+nf :: (Foil.Distinct n) => Foil.Scope n -> Term n -> Term n
 -- nf scope term = quote scope (eval scope Foil.identitySubst term)
 nf scope term = quote' eval scope (eval scope Foil.identitySubst term)
