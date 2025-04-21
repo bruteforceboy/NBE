@@ -323,8 +323,10 @@ whnf scope = \case
 
 -- | Normal form
 -- >>> Free.nf emptyScope (fromString "(λs. λz. s (s (s z))) (λs. λz. s (s z)) (λx. x) (λy. λz. y)")
--- λ x1 . λ x2 . x1
--- >>> Free.nf emptyScope (fromString "let x = (λx. (x,(x,x))) in x")
+-- λ x0 . λ x1 . x0
+-- >>> Free.nf emptyScope (fromString "let x = (λx. (x,(x,x))) in (x x)")
+-- (λ x0 . (x0, (x0, x0)), (λ x0 . (x0, (x0, x0)), λ x0 . (x0, (x0, x0))))
 -- >>> Free.nf emptyScope (fromString "(λx. (x,(x,x)))")
+-- λ x0 . (x0, (x0, x0))
 nf :: (Foil.Distinct n) => Foil.Scope n -> Term n -> Term n
 nf scope term = quote' eval scope (eval scope Foil.identitySubst term)
