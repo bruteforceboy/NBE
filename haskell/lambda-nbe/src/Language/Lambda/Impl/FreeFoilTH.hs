@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
@@ -17,6 +18,7 @@
 
 module Language.Lambda.Impl.FreeFoilTH where
 
+import Control.DeepSeq (NFData, deepseq)
 import qualified Control.Monad.Foil as Foil
 import Control.Monad.Foil.Internal
   ( InjectName (injectName),
@@ -34,6 +36,7 @@ import Control.Monad.Free.Foil
     substitute,
   )
 import Control.Monad.Free.Foil.TH
+import qualified Criterion.Main as C
 import Data.Bifunctor
 import Data.Bifunctor.TH
 import qualified Data.IntMap as IntMap
@@ -330,3 +333,13 @@ whnf scope = \case
 -- λ x0 . (x0, (x0, x0))
 nf :: (Foil.Distinct n) => Foil.Scope n -> Term n -> Term n
 nf scope term = quote' eval scope (eval scope Foil.identitySubst term)
+
+benchTerm ::
+  forall n.
+  (Foil.Distinct n) =>
+  Foil.Scope n ->
+  String ->
+  Term n ->
+  C.Benchmark
+benchTerm scope name term =
+  C.bench name $ C.whnf (nf scope) term

@@ -41,6 +41,7 @@ dependencies:
   deepseq:
   free-foil: ">= 0.2.0"
   kind-generics-th:
+  criterion:
 
 ghc-options:
   - -Wall
@@ -62,6 +63,7 @@ library:
         - Language.Lambda.Syntax.Test
         - Language.Lambda.Syntax.ErrM
         - Language.Lambda.Syntax.Skel
+        - Language.Lambda.Bench.FreeFoilTH
 
 executables:
   lambda-nbe:
@@ -73,7 +75,19 @@ executables:
       - -with-rtsopts=-N
     dependencies:
       - lambda-nbe
-
+      - criterion
+  bench-freefoil:
+    main: Bench.hs
+    source-dirs: bench
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - lambda-nbe
+      - criterion
+      - filepath
+      - directory
 tests:
   spec:
     main: Spec.hs
@@ -88,6 +102,7 @@ tests:
       - hspec
       - hspec-discover
       - mtl
+      - criterion
 
   doctests:
     source-dirs:

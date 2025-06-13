@@ -1,0 +1,8 @@
+let x = (\x. (x,(x,x))) in (x x)
+let x = (\y. y) in x
+let x = (\x. x) in (x x)
+let x = (\x. (x, (x, x))) in let y = x in (y y)
+let x = (\x. x) in let x = (\y. y) in x
+let f = (\x.\y.x) in let g = (\x.x) in f g g
+let id = (\x.x) in let id = (\y.y) in id
+let x = (\x.\y.x) in let y = (\z.z) in x y y
