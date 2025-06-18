@@ -1,30 +1,30 @@
 -- line 1
 λ x0 . x0
--- time(s): 5.1724e-5
+-- time(s): 3.7579e-5
 -- line 2
 λ x0 . x0
--- time(s): 4.8428e-5
+-- time(s): 2.6359e-5
 -- line 3
 λ x0 . x0
--- time(s): 5.8161e-5
+-- time(s): 3.0425e-5
 -- line 4
 λ x0 . x0
--- time(s): 7.0771e-5
+-- time(s): 3.6982e-5
 -- line 5
 λ x0 . x0
--- time(s): 8.1767e-5
+-- time(s): 4.4564e-5
 -- line 6
 λ x0 . x0
--- time(s): 1.04584e-4
+-- time(s): 5.0197e-5
 -- line 7
 λ x0 . x0
--- time(s): 1.10368e-4
+-- time(s): 5.8422e-5
 -- line 8
 λ x0 . x0
--- time(s): 1.20042e-4
+-- time(s): 6.0562e-5
 -- line 9
 λ x0 . x0
--- time(s): 1.387286e-3
+-- time(s): 7.90024e-4
 -- line 10
 λ x0 . x0
--- time(s): 9.9238e-5
+-- time(s): 4.8333e-5
